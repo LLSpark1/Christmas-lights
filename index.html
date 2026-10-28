@@ -1,0 +1,404 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Lights Job Estimator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: one narrow column, three plain steps top to bottom. */
+:root {
+  --bg: #f3f6f2;
+  --surface: #ffffff;
+  --sunk: #e8eee7;
+  --line: #d3ddd2;
+  --fg: #16251c;
+  --muted: #5b6b60;
+  --pine: #1d4d36;
+  --pine-fg: #ffffff;
+  --glow: #e0a526;
+  --berry: #b8322f;
+  --ok: #2c7a4b;
+  --display: "Bricolage Grotesque", "Avenir Next", system-ui, sans-serif;
+  --body: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1712; --surface: #16221b; --sunk: #1d2b23; --line: #2c3e33;
+    --fg: #e8efe9; --muted: #9aab9f; --pine: #5fbf8a; --pine-fg: #0b1510;
+    --glow: #f2bc45; --berry: #ef6b66; --ok: #6fd49a; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1712; --surface: #16221b; --sunk: #1d2b23; --line: #2c3e33;
+  --fg: #e8efe9; --muted: #9aab9f; --pine: #5fbf8a; --pine-fg: #0b1510;
+  --glow: #f2bc45; --berry: #ef6b66; --ok: #6fd49a; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0; }
+[hidden] { display: none !important; }
+body { background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 16px; line-height: 1.45; }
+.wrap { max-width: 720px; margin: 0 auto; padding-block: 20px 60px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 16px; }
+header { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.brand { display: flex; align-items: center; gap: 10px; }
+.bulbs { display: flex; gap: 5px; }
+.bulbs i { width: 10px; height: 14px; border-radius: 50% 50% 45% 45%; background: var(--glow); box-shadow: 0 0 10px var(--glow); display: block; }
+.bulbs i:nth-child(2) { background: var(--berry); box-shadow: 0 0 10px var(--berry); }
+.bulbs i:nth-child(3) { background: var(--ok); box-shadow: 0 0 10px var(--ok); }
+h1 { font-family: var(--display); font-weight: 800; font-size: 1.5rem; margin: 0; }
+h2 { font-family: var(--display); font-weight: 700; font-size: 1.15rem; margin: 0; display: flex; align-items: center; gap: 10px; }
+h2 .n { width: 26px; height: 26px; border-radius: 50%; background: var(--glow); color: #2a1d00; display: inline-grid; place-items: center; font-size: .9rem; flex: none; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px; display: grid; gap: 12px; min-width: 0; }
+.jobs { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+input, select { font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 11px 12px; width: 100%; min-width: 0; }
+input:focus-visible, select:focus-visible, button:focus-visible, a:focus-visible { outline: 2px solid var(--glow); outline-offset: 1px; }
+.btn { font: inherit; font-weight: 600; border-radius: 8px; padding: 11px 16px; border: 1px solid var(--line); background: var(--surface); color: var(--fg); cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; }
+.btn:hover { background: var(--sunk); }
+.btn.primary { background: var(--pine); color: var(--pine-fg); border-color: var(--pine); }
+.btn.glow { background: var(--glow); color: #2a1d00; border-color: var(--glow); }
+.btn.link { border: 0; background: none; color: var(--muted); padding: 6px 4px; font-weight: 500; text-decoration: underline; }
+.btn.x { border: 0; background: none; color: var(--muted); padding: 8px; font-size: 1.2rem; line-height: 1; }
+.btn.x:hover { color: var(--berry); }
+.row { display: flex; flex-wrap: wrap; gap: 8px; }
+.row > .btn { flex: 1; }
+.hint { color: var(--muted); font-size: .88rem; }
+/* runs */
+.run { display: grid; grid-template-columns: minmax(0, 1.2fr) 100px minmax(0, 1.4fr) auto; gap: 8px; align-items: center; }
+.run .ft { position: relative; }
+.run .ft input { font-family: var(--mono); padding-right: 40px; }
+.run .ft span { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-size: .78rem; color: var(--muted); pointer-events: none; }
+.colhead { display: grid; grid-template-columns: minmax(0, 1.2fr) 100px minmax(0, 1.4fr) 34px; gap: 8px; font-size: .75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+@media (max-width: 560px) {
+  .colhead { display: none; }
+  .run { grid-template-columns: minmax(0, 1fr) 100px auto; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+  .run .where { grid-column: 1 / -1; }
+  .run .light { grid-column: 1 / 2; }
+  .run .ft { grid-column: 2 / 3; grid-row: 2; }
+}
+/* order */
+ul.order { list-style: none; margin: 0; padding: 0; display: grid; }
+ul.order li { display: grid; grid-template-columns: 74px minmax(0, 1fr); gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--line); }
+ul.order li:last-child { border-bottom: 0; }
+ul.order .q { font-family: var(--mono); font-variant-numeric: tabular-nums; text-align: right; font-weight: 500; }
+ul.order .need { color: var(--muted); font-size: .82rem; }
+.total { display: flex; justify-content: space-between; background: var(--sunk); border-radius: 8px; padding: 10px 12px; font-weight: 600; }
+.total b { font-family: var(--mono); font-weight: 500; }
+.ordered { color: var(--ok); font-weight: 600; font-size: .9rem; }
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(18px + env(safe-area-inset-bottom, 0px)); background: var(--fg); color: var(--bg); padding: 10px 16px; border-radius: 8px; font-weight: 600; z-index: 20; }
+dialog { border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--fg); width: min(560px, calc(100vw - 32px)); padding: 16px; }
+dialog::backdrop { background: rgba(0,0,0,.45); }
+.sup { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; gap: 6px; }
+@media (max-width: 480px) { .sup { grid-template-columns: minmax(0, 1fr) auto; } .sup .em { grid-column: 1 / 2; } }
+.confirm { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: .9rem; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <div class="brand"><div class="bulbs" aria-hidden="true"><i></i><i></i><i></i></div><h1>Lights Job Estimator</h1></div>
+    <button class="btn link" id="openSettings" type="button">My suppliers</button>
+  </header>
+
+  <div class="jobs">
+    <select id="jobPick" aria-label="Saved jobs"></select>
+    <button class="btn primary" id="newJob" type="button">+ New job</button>
+  </div>
+
+  <section class="card">
+    <h2><span class="n">1</span>Address</h2>
+    <input id="address" placeholder="123 Main St, City, State" autocomplete="street-address" aria-label="Job address">
+    <a class="btn glow" id="mapBtn" target="_blank" rel="noopener" href="https://www.google.com/maps">Look up on satellite map ↗</a>
+    <div class="hint">On the map: switch to Satellite, then right‑click (or press and hold) the roof edge and choose <b>Measure distance</b>.</div>
+  </section>
+
+  <section class="card">
+    <h2><span class="n">2</span>Measurements &amp; lights</h2>
+    <div class="colhead"><span>Where</span><span>Length</span><span>Light</span><span></span></div>
+    <div id="runs" style="display:grid;gap:8px"></div>
+    <button class="btn" id="addRun" type="button">+ Add another spot</button>
+  </section>
+
+  <section class="card">
+    <h2><span class="n">3</span>Order</h2>
+    <ul class="order" id="order"></ul>
+    <div class="total"><span>Total lit length</span><b id="totalFt">0 ft</b></div>
+    <select id="supplier" aria-label="Supplier"></select>
+    <div class="row">
+      <a class="btn primary" id="emailBtn" href="#">Email order</a>
+      <button class="btn" id="copyBtn" type="button">Copy order</button>
+      <a class="btn" id="siteBtn" target="_blank" rel="noopener" href="#">Supplier website ↗</a>
+    </div>
+    <div class="hint" id="emailHint"></div>
+    <div class="row" style="justify-content:space-between;align-items:center">
+      <span class="ordered" id="orderedNote"></span>
+      <button class="btn link" id="markOrdered" type="button" style="flex:none">Mark as ordered</button>
+    </div>
+    <pre id="poText" class="sr"></pre>
+  </section>
+
+  <div class="confirm">
+    <button class="btn link" id="delJob" type="button">Delete this job</button>
+    <span id="delAsk" hidden>Sure? <button class="btn link" id="delYes" type="button" style="color:var(--berry)">Yes, delete</button> <button class="btn link" id="delNo" type="button">No</button></span>
+  </div>
+</div>
+
+<dialog id="settings">
+  <div style="display:grid;gap:12px">
+    <div style="display:flex;justify-content:space-between;align-items:center"><h2>My suppliers</h2><button class="btn" id="closeSettings" type="button">Done</button></div>
+    <input id="bizName" placeholder="Your business name (goes on orders)" aria-label="Business name">
+    <div id="supList" style="display:grid;gap:8px"></div>
+    <button class="btn" id="addSup" type="button">+ Add supplier</button>
+    <div class="hint">Put in each supplier's order email so “Email order” goes straight to them.</div>
+  </div>
+</dialog>
+
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(() => {
+// ---------- Lights ----------
+const COLORS = ["Warm White", "Pure White", "Multicolor", "Red", "Green", "Blue"];
+const TYPES = [
+  { id: "c9", name: "C9 bulbs", kind: "bulb", wire: "SPT-2" },
+  { id: "c7", name: "C7 bulbs", kind: "bulb", wire: "SPT-1" },
+  { id: "mini", name: "Mini lights", kind: "mini" },
+  { id: "net", name: "Net lights (bushes)", kind: "net" },
+  { id: "rope", name: "Rope light", kind: "rope" },
+];
+const typeById = Object.fromEntries(TYPES.map(t => [t.id, t]));
+const splitLight = v => { const [t, ...c] = String(v || "c9|Warm White").split("|"); return { t: typeById[t] || TYPES[0], color: c.join("|") || "Warm White" }; };
+const unitOf = run => splitLight(run.light).t.kind === "net" ? "sq ft" : "ft";
+
+// What one spot needs: [{name, qty, unit, pack, packLabel}]
+function needs(run) {
+  const ft = Math.max(0, Number(run.feet) || 0);
+  if (!ft) return [];
+  const { t, color } = splitLight(run.light);
+  if (t.kind === "bulb") {
+    const bulbs = Math.ceil(ft) + 1;                // 12" spacing
+    const wire = Math.ceil(ft * 1.05 + 3);          // 5% waste + lead
+    return [
+      { name: `${t.id.toUpperCase()} LED bulbs – ${color}`, qty: bulbs, unit: "bulbs", pack: 25, packLabel: "box of 25" },
+      { name: `${t.wire} green wire, 12" spacing`, qty: wire, unit: "ft", pack: 1000, packLabel: "1,000 ft spool" },
+      { name: "Gutter/shingle clips", qty: bulbs, unit: "clips", pack: 100, packLabel: "bag of 100" },
+      { name: `${t.wire} zip plugs (male + female)`, qty: 2, unit: "plugs", pack: 10, packLabel: "bag of 10" },
+    ];
+  }
+  if (t.kind === "mini") return [{ name: `LED mini lights, 70‑ct 24 ft – ${color}`, qty: Math.ceil(ft / 23), unit: "strings", pack: 1, packLabel: "" }];
+  if (t.kind === "net") return [{ name: `LED net lights 4'×6' – ${color}`, qty: Math.ceil(ft / 24), unit: "nets", pack: 1, packLabel: "" }];
+  if (t.kind === "rope") return [{ name: `LED rope light – ${color}`, qty: Math.ceil(ft * 1.05), unit: "ft", pack: 150, packLabel: "150 ft spool" }];
+  return [];
+}
+function orderLines(job) {
+  const m = new Map();
+  for (const r of job.runs) for (const it of needs(r)) {
+    if (!m.has(it.name)) m.set(it.name, { ...it, qty: 0 });
+    m.get(it.name).qty += it.qty;
+  }
+  return [...m.values()].map(it => ({ ...it, packs: Math.ceil(it.qty / it.pack) }));
+}
+
+// ---------- State ----------
+let db = null;
+const state = { jobs: {}, settings: { bizName: "", suppliers: [] }, currentId: null };
+const LS_KEY = "lje-local-v2";
+const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+const blankRun = () => ({ id: uid(), where: "", feet: "", light: "c9|Warm White" });
+const blankJob = () => ({ id: uid(), address: "", runs: [blankRun()], supplier: "", orderedAt: null, updatedAt: Date.now() });
+// Older saved jobs used a longer format; convert them on read.
+const OLD = { c9s: "c9", c9f: "c9", c7s: "c7", c7f: "c7", m70: "mini", m100: "mini", net: "net", rope: "rope", stake: "c9" };
+const AREA_NAMES = { roof: "Roofline", peak: "Peaks", ridge: "Ridge", window: "Windows", door: "Door", rail: "Railing", walk: "Walkway", trunk: "Tree trunk", bush: "Bushes" };
+function normalize(j) {
+  j.runs = (j.runs || []).map(r => r.light && r.light.includes("|") ? r :
+    { id: r.id || uid(), where: r.where || AREA_NAMES[r.area] || "", feet: r.feet ?? r.amount ?? "", light: (OLD[r.light] || "c9") + "|" + (r.color || "Warm White") });
+  return j;
+}
+
+function loadLocal() { try { const s = JSON.parse(localStorage.getItem(LS_KEY) || "null"); if (s) { state.jobs = s.jobs || {}; Object.assign(state.settings, s.settings || {}); } } catch (e) {} }
+function saveLocal() { try { localStorage.setItem(LS_KEY, JSON.stringify({ jobs: state.jobs, settings: state.settings })); } catch (e) {} }
+
+const timers = {}, busy = {};
+function saveJob(job) {
+  job.updatedAt = Date.now();
+  state.jobs[job.id] = job;
+  clearTimeout(timers[job.id]);
+  timers[job.id] = setTimeout(() => { delete timers[job.id]; writeJob(job.id); }, 700);
+}
+async function writeJob(id) {
+  const job = state.jobs[id]; if (!job) return;
+  if (!db) return saveLocal();
+  if (busy[id]) { busy[id].again = true; return; }
+  busy[id] = { again: false };
+  try { await db.collection("jobs").doc(id).set(JSON.parse(JSON.stringify(job))); }
+  catch (e) { toast("Couldn't save. Check your connection."); }
+  const again = busy[id].again; delete busy[id];
+  if (again) writeJob(id);
+}
+let settingsTimer = null, settingsDirty = false;
+function saveSettings() {
+  settingsDirty = true;
+  clearTimeout(settingsTimer);
+  settingsTimer = setTimeout(async () => {
+    if (!db) { saveLocal(); settingsDirty = false; return; }
+    try { await db.doc("settings/main").set(JSON.parse(JSON.stringify(state.settings))); } catch (e) { toast("Couldn't save suppliers."); }
+    settingsDirty = false;
+  }, 700);
+}
+
+// ---------- Helpers ----------
+const $ = id => document.getElementById(id);
+const el = (tag, attrs = {}, ...kids) => {
+  const n = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === "class") n.className = v; else if (k === "text") n.textContent = v;
+    else if (k.startsWith("on")) n.addEventListener(k.slice(2), v); else if (v != null && v !== false) n.setAttribute(k, v);
+  }
+  for (const c of kids) if (c != null) n.append(c);
+  return n;
+};
+const fmt = n => Number(n).toLocaleString("en-US");
+const cur = () => state.jobs[state.currentId];
+const supplierOf = j => (state.settings.suppliers || []).find(s => s.id === j.supplier);
+function toast(msg) { const t = $("toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => t.hidden = true, 2200); }
+
+// ---------- Render ----------
+function renderJobPick() {
+  const s = $("jobPick"); s.replaceChildren();
+  const jobs = Object.values(state.jobs).sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+  for (const j of jobs) s.append(el("option", { value: j.id, text: (j.address || "New job") + (j.orderedAt ? "  ✓ ordered" : "") }));
+  s.value = state.currentId;
+}
+function openJob(id) {
+  state.currentId = id;
+  const j = normalize(cur());
+  $("address").value = j.address || "";
+  $("delAsk").hidden = true;
+  updateMap(); renderRuns(); renderSuppliers(); renderOrder(); renderJobPick();
+}
+function updateMap() {
+  const a = $("address").value.trim();
+  $("mapBtn").href = a ? "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(a) : "https://www.google.com/maps";
+}
+function lightSelect(val) {
+  const s = el("select", { "aria-label": "Light" });
+  for (const t of TYPES) {
+    const g = el("optgroup", { label: t.name });
+    for (const c of COLORS) g.append(el("option", { value: t.id + "|" + c, text: t.name.replace(" (bushes)", "") + " – " + c }));
+    s.append(g);
+  }
+  s.value = val; return s;
+}
+function renderRuns() {
+  const j = cur(), box = $("runs"); box.replaceChildren();
+  j.runs.forEach((run, i) => {
+    const where = el("input", { value: run.where, placeholder: "e.g. Front roofline", "aria-label": "Where", id: "w-" + run.id });
+    const feet = el("input", { type: "number", min: "0", inputmode: "decimal", value: run.feet, placeholder: "0", "aria-label": "Length", id: "f-" + run.id });
+    const unit = el("span", { text: unitOf(run) });
+    const light = lightSelect(run.light);
+    where.addEventListener("input", () => { run.where = where.value; saveJob(j); renderOrder(); });
+    feet.addEventListener("input", () => { run.feet = feet.value; saveJob(j); renderOrder(); });
+    light.addEventListener("change", () => { run.light = light.value; unit.textContent = unitOf(run); saveJob(j); renderOrder(); });
+    const del = el("button", { type: "button", class: "btn x", "aria-label": "Remove this spot", text: "×", onclick: () => { j.runs.splice(i, 1); if (!j.runs.length) j.runs.push(blankRun()); saveJob(j); renderRuns(); renderOrder(); } });
+    box.append(el("div", { class: "run" }, el("div", { class: "where" }, where), el("div", { class: "ft" }, feet, unit), el("div", { class: "light" }, light), del));
+  });
+}
+function renderSuppliers() {
+  const s = $("supplier"), j = cur(), sups = state.settings.suppliers || [];
+  s.replaceChildren();
+  if (!sups.length) s.append(el("option", { value: "", text: "Add a supplier under “My suppliers”" }));
+  for (const sp of sups) s.append(el("option", { value: sp.id, text: "Order from: " + (sp.name || "Unnamed supplier") }));
+  if (j && !sups.some(x => x.id === j.supplier) && sups[0]) j.supplier = sups[0].id;
+  if (j) s.value = j.supplier || "";
+}
+function poText(j) {
+  const sp = supplierOf(j), lines = orderLines(j);
+  const out = [`Order from ${state.settings.bizName || "(your business)"}`, `Job: ${j.address || "(no address)"}`, ""];
+  if (!lines.length) out.push("(no items yet)");
+  for (const l of lines) out.push(`${l.packs} × ${l.packLabel ? l.packLabel + " " : ""}${l.name}`);
+  out.push("", "Please confirm price and ship date. Thank you!");
+  return out.join("\n");
+}
+function renderOrder() {
+  const j = cur(); if (!j) return;
+  const lines = orderLines(j), ul = $("order"); ul.replaceChildren();
+  if (!lines.length) ul.append(el("li", { class: "hint", text: "Type in your measurements and the order fills in here." }));
+  for (const l of lines) ul.append(el("li", {},
+    el("span", { class: "q", text: fmt(l.packs) + " ×" }),
+    el("span", {}, (l.packLabel ? l.packLabel[0].toUpperCase() + l.packLabel.slice(1) + " – " : "") + l.name,
+      l.pack > 1 ? el("div", { class: "need", text: `need ${fmt(l.qty)} ${l.unit}` }) : null)));
+  const ft = j.runs.reduce((s, r) => s + (unitOf(r) === "ft" ? Number(r.feet) || 0 : 0), 0);
+  $("totalFt").textContent = fmt(ft) + " ft";
+  const sp = supplierOf(j), po = poText(j);
+  $("poText").textContent = po;
+  $("emailBtn").href = `mailto:${encodeURIComponent(sp?.email || "")}?subject=${encodeURIComponent("Light order – " + (j.address || "new job"))}&body=${encodeURIComponent(po)}`;
+  const site = sp?.website ? (/^https?:\/\//.test(sp.website) ? sp.website : "https://" + sp.website) : "";
+  $("siteBtn").hidden = !site; if (site) $("siteBtn").href = site;
+  $("emailHint").textContent = sp ? (sp.email ? `Sends to ${sp.email}. If your email app doesn't open, use Copy order.` : `Add ${sp.name || "this supplier"}'s email under “My suppliers” to send orders in one tap.`) : "";
+  $("orderedNote").textContent = j.orderedAt ? "✓ Ordered " + new Date(j.orderedAt).toLocaleDateString("en-US") : "";
+}
+function renderSettings() {
+  $("bizName").value = state.settings.bizName || "";
+  const box = $("supList"); box.replaceChildren();
+  (state.settings.suppliers || []).forEach((sp, i) => {
+    const f = (k, ph, cls) => { const inp = el("input", { value: sp[k] || "", placeholder: ph, "aria-label": ph, id: `s-${sp.id}-${k}`, class: cls }); inp.addEventListener("input", () => { sp[k] = inp.value; saveSettings(); renderSuppliers(); renderOrder(); }); return inp; };
+    box.append(el("div", { class: "sup" }, f("name", "Supplier name"), f("email", "Order email", "em"),
+      el("button", { type: "button", class: "btn x", "aria-label": "Remove supplier", text: "×", onclick: () => { state.settings.suppliers.splice(i, 1); saveSettings(); renderSettings(); renderSuppliers(); renderOrder(); } })));
+  });
+}
+
+// ---------- Events ----------
+$("address").addEventListener("input", () => { const j = cur(); j.address = $("address").value; updateMap(); saveJob(j); renderOrder(); });
+$("jobPick").addEventListener("change", () => openJob($("jobPick").value));
+$("newJob").addEventListener("click", () => { const j = blankJob(); state.jobs[j.id] = j; openJob(j.id); $("address").focus(); });
+$("addRun").addEventListener("click", () => { const j = cur(); const last = j.runs[j.runs.length - 1]; const r = blankRun(); if (last) r.light = last.light; j.runs.push(r); saveJob(j); renderRuns(); $("w-" + r.id).focus(); });
+$("supplier").addEventListener("change", () => { const j = cur(); j.supplier = $("supplier").value; saveJob(j); renderOrder(); });
+$("copyBtn").addEventListener("click", () => {
+  const text = poText(cur());
+  const fallback = () => { const p = $("poText"); p.classList.remove("sr"); const r = document.createRange(); r.selectNodeContents(p); const s = getSelection(); s.removeAllRanges(); s.addRange(r); toast("Selected – press copy on your device"); };
+  try { navigator.clipboard.writeText(text).then(() => toast("Order copied"), fallback); } catch (e) { fallback(); }
+});
+$("markOrdered").addEventListener("click", () => { const j = cur(); j.orderedAt = j.orderedAt ? null : Date.now(); saveJob(j); renderOrder(); renderJobPick(); });
+$("delJob").addEventListener("click", () => $("delAsk").hidden = false);
+$("delNo").addEventListener("click", () => $("delAsk").hidden = true);
+$("delYes").addEventListener("click", async () => {
+  const id = state.currentId; delete state.jobs[id]; clearTimeout(timers[id]); delete timers[id];
+  if (db) { try { await db.collection("jobs").doc(id).delete(); } catch (e) {} } else saveLocal();
+  bootWith(); toast("Job deleted");
+});
+$("openSettings").addEventListener("click", () => { renderSettings(); $("settings").showModal(); });
+$("closeSettings").addEventListener("click", () => $("settings").close());
+$("bizName").addEventListener("input", () => { state.settings.bizName = $("bizName").value; saveSettings(); renderOrder(); });
+$("addSup").addEventListener("click", () => { (state.settings.suppliers = state.settings.suppliers || []).push({ id: uid(), name: "", email: "", website: "" }); saveSettings(); renderSettings(); renderSuppliers(); });
+
+// ---------- Boot ----------
+function bootWith() {
+  const latest = Object.values(state.jobs).sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))[0];
+  if (latest) openJob(latest.id); else { const j = blankJob(); state.jobs[j.id] = j; openJob(j.id); }
+}
+loadLocal(); bootWith();
+
+(async () => {
+  try { db = window.claude && window.claude.use ? await window.claude.use("db") : null; } catch (e) { db = null; }
+  if (!db) return;
+  let first = true;
+  db.collection("jobs").onSnapshot(snap => {
+    const c = cur(), incoming = {};
+    for (const d of snap.docs) incoming[d.id] = normalize({ ...d.data(), id: d.id });
+    if (c && (!incoming[c.id] || timers[c.id] || busy[c.id])) incoming[c.id] = c;
+    state.jobs = incoming;
+    const untouched = c && !c.address && !c.runs.some(r => r.feet || r.where);
+    if (first && untouched && snap.size) { first = false; delete state.jobs[c.id]; bootWith(); }
+    else { first = false; renderJobPick(); }
+  }, () => toast("Live updates stopped. Reload the page."));
+  db.doc("settings/main").onSnapshot(d => {
+    if (d.exists && !settingsDirty) { Object.assign(state.settings, JSON.parse(JSON.stringify(d.data()))); renderSuppliers(); renderOrder(); }
+  }, () => {});
+})();
+})();
+</script>
+</body>
+</html>
