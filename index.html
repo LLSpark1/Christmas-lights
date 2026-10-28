@@ -514,7 +514,8 @@ loadLocal(); bootWith();
   let first = true;
   db.collection("jobs").onSnapshot(snap => {
     const c = cur(), incoming = {};
-    for (const d of snap.docs) incoming[d.id] = normalize({ ...d.data(), id: d.id });
+    // Snapshots arrive frozen; copy deeply so rows stay editable.
+    for (const d of snap.docs) incoming[d.id] = normalize({ ...JSON.parse(JSON.stringify(d.data())), id: d.id });
     if (c && (!incoming[c.id] || timers[c.id] || busy[c.id])) incoming[c.id] = c;
     state.jobs = incoming;
     const untouched = c && !c.address && !c.runs.some(r => r.feet || r.where);
