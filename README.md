@@ -9,8 +9,25 @@ Open `index.html` in a browser, or turn on GitHub Pages (Settings → Pages → 
 1. **Address** – type it and tap *Look up on satellite map*. In Google Maps, switch to Satellite, right-click (or press and hold) the roof edge and choose *Measure distance*.
 2. **Measurements & lights** – one row per spot: where, length (feet, or square feet for net lights), and the light type + color.
 3. **Order** – the list is rounded up to full boxes, spools and bags. Choose a supplier, then *Email order* or *Copy order*.
+4. **Customer quote** – prices each spot from your rates, adds the two-story charge if checked, and applies your minimum job price. *Email quote to customer* or *Copy quote*. The "Only you see this" box shows the estimated cost of the lights and what's left for labor and profit.
 
-Add your suppliers and their order emails under **My suppliers**.
+Set your prices, business name and suppliers under **Prices & suppliers**.
+
+## Starting prices
+
+These are starting points for a new installer (lights + install + take-down included). Check what local companies charge and adjust.
+
+| Item | Default |
+|---|---|
+| C9 bulbs | $9 / ft |
+| C7 bulbs | $8 / ft |
+| Mini lights | $6 / ft |
+| Net lights | $3 / sq ft |
+| Rope light | $8 / ft |
+| Two-story / steep roof | +25% |
+| Minimum job | $500 |
+
+Light costs used for the profit estimate (box of 25 C9/C7 bulbs $20, 1,000 ft wire $220, 100 clips $12, 10 zip plugs $8, mini string $10, net $22, 150 ft rope $110) are rough wholesale guesses; they live in `needs()` in `index.html`.
 
 ## Estimating rules
 
@@ -25,4 +42,4 @@ These live in the `needs()` function in `index.html` if you want to change them.
 
 ## Data
 
-Jobs and suppliers are saved in your browser (localStorage) on the device you use. Clearing browser data removes them.
+Jobs, prices and suppliers are saved in your browser (localStorage) on the device you use. Clearing browser data removes them.

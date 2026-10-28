@@ -86,6 +86,23 @@ ul.order .need { color: var(--muted); font-size: .82rem; }
 .total { display: flex; justify-content: space-between; background: var(--sunk); border-radius: 8px; padding: 10px 12px; font-weight: 600; }
 .total b { font-family: var(--mono); font-weight: 500; }
 .ordered { color: var(--ok); font-weight: 600; font-size: .9rem; }
+.qline { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--line); }
+.qline small { display: block; color: var(--muted); font-size: .8rem; }
+.amt { font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.money { display: grid; gap: 6px; }
+.money > div { display: flex; justify-content: space-between; gap: 10px; }
+.money .grand { font-size: 1.25rem; font-weight: 700; border-top: 2px solid var(--fg); padding-top: 8px; }
+.mine { background: var(--sunk); border-radius: 8px; padding: 10px 12px; display: grid; gap: 4px; font-size: .9rem; }
+.mine .k { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+.mine > div { display: flex; justify-content: space-between; gap: 10px; }
+.profit { color: var(--ok); font-weight: 700; }
+.two { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; }
+.check { display: flex; gap: 10px; align-items: center; font-weight: 500; }
+.check input { width: 20px; height: 20px; flex: none; }
+.rates { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+.rates label, label.f { display: grid; gap: 4px; font-size: .8rem; font-weight: 600; color: var(--muted); }
+textarea { font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; width: 100%; resize: vertical; }
+textarea:focus-visible { outline: 2px solid var(--glow); outline-offset: 1px; }
 .toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(18px + env(safe-area-inset-bottom, 0px)); background: var(--fg); color: var(--bg); padding: 10px 16px; border-radius: 8px; font-weight: 600; z-index: 20; }
 dialog { border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--fg); width: min(560px, calc(100vw - 32px)); padding: 16px; }
 dialog::backdrop { background: rgba(0,0,0,.45); }
@@ -100,7 +117,7 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
 <div class="wrap">
   <header>
     <div class="brand"><div class="bulbs" aria-hidden="true"><i></i><i></i><i></i></div><h1>Lights Job Estimator</h1></div>
-    <button class="btn link" id="openSettings" type="button">My suppliers</button>
+    <button class="btn link" id="openSettings" type="button">Prices &amp; suppliers</button>
   </header>
 
   <div class="jobs">
@@ -140,6 +157,24 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
     <pre id="poText" class="sr"></pre>
   </section>
 
+  <section class="card">
+    <h2><span class="n">4</span>Customer quote</h2>
+    <div class="two">
+      <input id="custName" placeholder="Customer name" aria-label="Customer name">
+      <input id="custEmail" type="email" placeholder="Customer email" aria-label="Customer email">
+    </div>
+    <label class="check"><input type="checkbox" id="steep"><span>Two-story or steep roof (adds <span id="steepPct">25</span>%)</span></label>
+    <div id="quoteLines"></div>
+    <div class="money" id="quoteTotals"></div>
+    <div class="row">
+      <a class="btn primary" id="emailQuote" href="#">Email quote to customer</a>
+      <button class="btn" id="copyQuote" type="button">Copy quote</button>
+    </div>
+    <div class="mine" id="mine"></div>
+    <div class="hint">The price per foot covers the lights, installing them, and taking them down after the season. Change your prices under “Prices &amp; suppliers”.</div>
+    <pre id="quoteText" class="sr"></pre>
+  </section>
+
   <div class="confirm">
     <button class="btn link" id="delJob" type="button">Delete this job</button>
     <span id="delAsk" hidden>Sure? <button class="btn link" id="delYes" type="button" style="color:var(--berry)">Yes, delete</button> <button class="btn link" id="delNo" type="button">No</button></span>
@@ -148,8 +183,20 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
 
 <dialog id="settings">
   <div style="display:grid;gap:12px">
-    <div style="display:flex;justify-content:space-between;align-items:center"><h2>My suppliers</h2><button class="btn" id="closeSettings" type="button">Done</button></div>
-    <input id="bizName" placeholder="Your business name (goes on orders)" aria-label="Business name">
+    <div style="display:flex;justify-content:space-between;align-items:center"><h2>Prices &amp; suppliers</h2><button class="btn" id="closeSettings" type="button">Done</button></div>
+    <input id="bizName" placeholder="Your business name (goes on orders and quotes)" aria-label="Business name">
+    <h2 style="font-size:1rem">My prices</h2>
+    <div class="rates">
+      <label>C9 bulbs ($ per ft)<input id="r-c9" type="number" min="0" step="0.25"></label>
+      <label>C7 bulbs ($ per ft)<input id="r-c7" type="number" min="0" step="0.25"></label>
+      <label>Mini lights ($ per ft)<input id="r-mini" type="number" min="0" step="0.25"></label>
+      <label>Net lights ($ per sq ft)<input id="r-net" type="number" min="0" step="0.25"></label>
+      <label>Rope light ($ per ft)<input id="r-rope" type="number" min="0" step="0.25"></label>
+      <label>Minimum job ($)<input id="r-min" type="number" min="0" step="25"></label>
+      <label>Two-story / steep (+%)<input id="r-steep" type="number" min="0" step="5"></label>
+    </div>
+    <label class="f">What the price includes (printed on quotes)<textarea id="included" rows="2"></textarea></label>
+    <h2 style="font-size:1rem">Suppliers</h2>
     <div id="supList" style="display:grid;gap:8px"></div>
     <button class="btn" id="addSup" type="button">+ Add supplier</button>
     <div class="hint">Put in each supplier's order email so “Email order” goes straight to them.</div>
@@ -182,16 +229,64 @@ function needs(run) {
     const bulbs = Math.ceil(ft) + 1;                // 12" spacing
     const wire = Math.ceil(ft * 1.05 + 3);          // 5% waste + lead
     return [
-      { name: `${t.id.toUpperCase()} LED bulbs – ${color}`, qty: bulbs, unit: "bulbs", pack: 25, packLabel: "box of 25" },
-      { name: `${t.wire} green wire, 12" spacing`, qty: wire, unit: "ft", pack: 1000, packLabel: "1,000 ft spool" },
-      { name: "Gutter/shingle clips", qty: bulbs, unit: "clips", pack: 100, packLabel: "bag of 100" },
-      { name: `${t.wire} zip plugs (male + female)`, qty: 2, unit: "plugs", pack: 10, packLabel: "bag of 10" },
+      { name: `${t.id.toUpperCase()} LED bulbs – ${color}`, qty: bulbs, unit: "bulbs", pack: 25, packLabel: "box of 25", cost: 20 },
+      { name: `${t.wire} green wire, 12" spacing`, qty: wire, unit: "ft", pack: 1000, packLabel: "1,000 ft spool", cost: 220 },
+      { name: "Gutter/shingle clips", qty: bulbs, unit: "clips", pack: 100, packLabel: "bag of 100", cost: 12 },
+      { name: `${t.wire} zip plugs (male + female)`, qty: 2, unit: "plugs", pack: 10, packLabel: "bag of 10", cost: 8 },
     ];
   }
-  if (t.kind === "mini") return [{ name: `LED mini lights, 70‑ct 24 ft – ${color}`, qty: Math.ceil(ft / 23), unit: "strings", pack: 1, packLabel: "" }];
-  if (t.kind === "net") return [{ name: `LED net lights 4'×6' – ${color}`, qty: Math.ceil(ft / 24), unit: "nets", pack: 1, packLabel: "" }];
-  if (t.kind === "rope") return [{ name: `LED rope light – ${color}`, qty: Math.ceil(ft * 1.05), unit: "ft", pack: 150, packLabel: "150 ft spool" }];
+  if (t.kind === "mini") return [{ name: `LED mini lights, 70‑ct 24 ft – ${color}`, qty: Math.ceil(ft / 23), unit: "strings", pack: 1, packLabel: "", cost: 10 }];
+  if (t.kind === "net") return [{ name: `LED net lights 4'×6' – ${color}`, qty: Math.ceil(ft / 24), unit: "nets", pack: 1, packLabel: "", cost: 22 }];
+  if (t.kind === "rope") return [{ name: `LED rope light – ${color}`, qty: Math.ceil(ft * 1.05), unit: "ft", pack: 150, packLabel: "150 ft spool", cost: 110 }];
   return [];
+}
+
+// ---------- Quote ----------
+// Starting prices for a new installer: lights + install + take-down, per foot (nets per sq ft).
+const DEFAULT_RATES = { c9: 9, c7: 8, mini: 6, net: 3, rope: 8, min: 500, steep: 25 };
+const DEFAULT_INCLUDED = "Commercial-grade LED lights, professional installation, free repairs during the season, and take-down after the holidays.";
+const rates = () => ({ ...DEFAULT_RATES, ...(state.settings.rates || {}) });
+const money = n => "$" + Number(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+function quote(j) {
+  const R = rates(), lines = [];
+  for (const r of j.runs) {
+    const ft = Number(r.feet) || 0; if (!ft) continue;
+    const { t, color } = splitLight(r.light), rate = Number(R[t.id]) || 0;
+    lines.push({ label: r.where || t.name, detail: `${fmt(ft)} ${unitOf(r)} of ${t.name.replace(" (bushes)", "")}, ${color} · ${money(rate)}/${unitOf(r)}`, amount: ft * rate });
+  }
+  const sub = lines.reduce((s, l) => s + l.amount, 0);
+  const steep = j.steep ? sub * (Number(R.steep) || 0) / 100 : 0;
+  let total = sub + steep;
+  const minApplied = total > 0 && total < (Number(R.min) || 0);
+  if (minApplied) total = Number(R.min);
+  const cost = j.runs.flatMap(needs).reduce((s, it) => s + it.qty / it.pack * it.cost, 0);
+  return { lines, sub, steep, total, minApplied, cost, profit: total - cost, steepPct: Number(R.steep) || 0 };
+}
+function quoteText(j) {
+  const q = quote(j), biz = state.settings.bizName;
+  const out = [`Christmas Lighting Quote${biz ? " – " + biz : ""}`, `Prepared for: ${j.customer || ""}`, `Address: ${j.address || ""}`, `Date: ${new Date().toLocaleDateString("en-US")}`, ""];
+  for (const l of q.lines) out.push(`${l.label}: ${money(l.amount)}`);
+  if (q.steep) out.push(`Two-story / steep roof: ${money(q.steep)}`);
+  if (q.minApplied) out.push(`Minimum job price applies`);
+  out.push("", `TOTAL: ${money(q.total)}`, "", `Includes: ${state.settings.included || DEFAULT_INCLUDED}`, "This quote is good for 30 days. Reply to this email to book your install date.");
+  return out.join("\n");
+}
+function renderQuote() {
+  const j = cur(), q = quote(j);
+  $("steepPct").textContent = q.steepPct;
+  const box = $("quoteLines"); box.replaceChildren();
+  if (!q.lines.length) box.append(el("div", { class: "hint", text: "Your measurements turn into a price here." }));
+  for (const l of q.lines) box.append(el("div", { class: "qline" }, el("span", {}, l.label, el("small", { text: l.detail })), el("span", { class: "amt", text: money(l.amount) })));
+  const row = (k, v, cls) => el("div", { class: cls || "" }, el("span", { text: k }), el("span", { class: "amt", text: v }));
+  const t = $("quoteTotals"); t.replaceChildren();
+  if (q.steep) t.append(row(`Two-story / steep roof (+${q.steepPct}%)`, money(q.steep)));
+  if (q.minApplied) t.append(row("Raised to your minimum job price", ""));
+  t.append(row("Quote total", money(q.total), "grand"));
+  $("mine").replaceChildren(el("span", { class: "k", text: "Only you see this" }),
+    row("Estimated cost of lights", money(q.cost)),
+    el("div", {}, el("span", { text: "Left over for labor + profit" }), el("span", { class: "amt profit", text: money(q.profit) })));
+  $("quoteText").textContent = quoteText(j);
+  $("emailQuote").href = `mailto:${encodeURIComponent(j.custEmail || "")}?subject=${encodeURIComponent("Your Christmas lighting quote")}&body=${encodeURIComponent(quoteText(j))}`;
 }
 function orderLines(job) {
   const m = new Map();
@@ -276,6 +371,9 @@ function openJob(id) {
   state.currentId = id;
   const j = normalize(cur());
   $("address").value = j.address || "";
+  $("custName").value = j.customer || "";
+  $("custEmail").value = j.custEmail || "";
+  $("steep").checked = !!j.steep;
   $("delAsk").hidden = true;
   updateMap(); renderRuns(); renderSuppliers(); renderOrder(); renderJobPick();
 }
@@ -309,7 +407,7 @@ function renderRuns() {
 function renderSuppliers() {
   const s = $("supplier"), j = cur(), sups = state.settings.suppliers || [];
   s.replaceChildren();
-  if (!sups.length) s.append(el("option", { value: "", text: "Add a supplier under “My suppliers”" }));
+  if (!sups.length) s.append(el("option", { value: "", text: "Add a supplier under “Prices & suppliers”" }));
   for (const sp of sups) s.append(el("option", { value: sp.id, text: "Order from: " + (sp.name || "Unnamed supplier") }));
   if (j && !sups.some(x => x.id === j.supplier) && sups[0]) j.supplier = sups[0].id;
   if (j) s.value = j.supplier || "";
@@ -337,11 +435,15 @@ function renderOrder() {
   $("emailBtn").href = `mailto:${encodeURIComponent(sp?.email || "")}?subject=${encodeURIComponent("Light order – " + (j.address || "new job"))}&body=${encodeURIComponent(po)}`;
   const site = sp?.website ? (/^https?:\/\//.test(sp.website) ? sp.website : "https://" + sp.website) : "";
   $("siteBtn").hidden = !site; if (site) $("siteBtn").href = site;
-  $("emailHint").textContent = sp ? (sp.email ? `Sends to ${sp.email}. If your email app doesn't open, use Copy order.` : `Add ${sp.name || "this supplier"}'s email under “My suppliers” to send orders in one tap.`) : "";
+  $("emailHint").textContent = sp ? (sp.email ? `Sends to ${sp.email}. If your email app doesn't open, use Copy order.` : `Add ${sp.name || "this supplier"}'s email under “Prices & suppliers” to send orders in one tap.`) : "";
   $("orderedNote").textContent = j.orderedAt ? "✓ Ordered " + new Date(j.orderedAt).toLocaleDateString("en-US") : "";
+  renderQuote();
 }
 function renderSettings() {
   $("bizName").value = state.settings.bizName || "";
+  const R = rates();
+  for (const k of Object.keys(DEFAULT_RATES)) $("r-" + k).value = R[k];
+  $("included").value = state.settings.included || DEFAULT_INCLUDED;
   const box = $("supList"); box.replaceChildren();
   (state.settings.suppliers || []).forEach((sp, i) => {
     const f = (k, ph, cls) => { const inp = el("input", { value: sp[k] || "", placeholder: ph, "aria-label": ph, id: `s-${sp.id}-${k}`, class: cls }); inp.addEventListener("input", () => { sp[k] = inp.value; saveSettings(); renderSuppliers(); renderOrder(); }); return inp; };
@@ -352,6 +454,18 @@ function renderSettings() {
 
 // ---------- Events ----------
 $("address").addEventListener("input", () => { const j = cur(); j.address = $("address").value; updateMap(); saveJob(j); renderOrder(); });
+$("custName").addEventListener("input", () => { const j = cur(); j.customer = $("custName").value; saveJob(j); renderQuote(); });
+$("custEmail").addEventListener("input", () => { const j = cur(); j.custEmail = $("custEmail").value; saveJob(j); renderQuote(); });
+$("steep").addEventListener("change", () => { const j = cur(); j.steep = $("steep").checked; saveJob(j); renderQuote(); });
+$("copyQuote").addEventListener("click", () => {
+  const text = quoteText(cur());
+  const fallback = () => { const p = $("quoteText"); p.classList.remove("sr"); const r = document.createRange(); r.selectNodeContents(p); const s = getSelection(); s.removeAllRanges(); s.addRange(r); toast("Selected – press copy on your device"); };
+  try { navigator.clipboard.writeText(text).then(() => toast("Quote copied"), fallback); } catch (e) { fallback(); }
+});
+for (const k of Object.keys(DEFAULT_RATES)) $("r-" + k).addEventListener("input", () => {
+  state.settings.rates = { ...rates(), [k]: $("r-" + k).value }; saveSettings(); renderQuote();
+});
+$("included").addEventListener("input", () => { state.settings.included = $("included").value; saveSettings(); renderQuote(); });
 $("jobPick").addEventListener("change", () => openJob($("jobPick").value));
 $("newJob").addEventListener("click", () => { const j = blankJob(); state.jobs[j.id] = j; openJob(j.id); $("address").focus(); });
 $("addRun").addEventListener("click", () => { const j = cur(); const last = j.runs[j.runs.length - 1]; const r = blankRun(); if (last) r.light = last.light; j.runs.push(r); saveJob(j); renderRuns(); $("w-" + r.id).focus(); });
