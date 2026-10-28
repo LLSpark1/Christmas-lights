@@ -98,6 +98,8 @@ ul.order li.changed { animation: flash 1.2s ease-out; }
 .mine .k { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
 .mine > div { display: flex; justify-content: space-between; gap: 10px; }
 .profit { color: var(--ok); font-weight: 700; }
+.loss { color: var(--berry); font-weight: 700; }
+.mine .grand { border-top: 1px solid var(--line); padding-top: 6px; margin-top: 2px; font-weight: 700; font-size: 1.05rem; }
 .two { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; }
 .check { display: flex; gap: 10px; align-items: center; font-weight: 500; }
 .check input { width: 20px; height: 20px; flex: none; }
@@ -172,8 +174,12 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
       <a class="btn primary" id="emailQuote" href="#">Email quote to customer</a>
       <button class="btn" id="copyQuote" type="button">Copy quote</button>
     </div>
+    <div class="two">
+      <label class="f">Install hours<input id="installHrs" inputmode="decimal" autocomplete="off"></label>
+      <label class="f">Take-down hours<input id="takedownHrs" inputmode="decimal" autocomplete="off"></label>
+    </div>
     <div class="mine" id="mine"></div>
-    <div class="hint">The price per foot covers the lights, installing them, and taking them down after the season. Change your prices under “Prices &amp; suppliers”.</div>
+    <div class="hint">The price per foot covers the lights, installing them, and taking them down after the season. Leave the hours blank to use the estimate, or type your own. Change prices and crew pay under “Prices &amp; suppliers”.</div>
     <pre id="quoteText" class="sr"></pre>
   </section>
 
@@ -196,6 +202,14 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
       <label>Rope light ($ per ft)<input id="r-rope" type="number" min="0" step="0.25"></label>
       <label>Minimum job ($)<input id="r-min" type="number" min="0" step="25"></label>
       <label>Two-story / steep (+%)<input id="r-steep" type="number" min="0" step="5"></label>
+    </div>
+    <h2 style="font-size:1rem">My crew</h2>
+    <div class="rates">
+      <label>Workers per job<input id="r-workers" type="number" min="1" step="1"></label>
+      <label>Pay per worker ($/hr)<input id="r-wage" type="number" min="0" step="0.5"></label>
+      <label>Payroll taxes (%)<input id="r-payroll" type="number" min="0" step="0.5"></label>
+      <label>Workers' comp (%)<input id="r-comp" type="number" min="0" step="0.5"></label>
+      <label>Gas, insurance &amp; gear ($/job)<input id="r-overhead" type="number" min="0" step="5"></label>
     </div>
     <label class="f">What the price includes (printed on quotes)<textarea id="included" rows="2"></textarea></label>
     <h2 style="font-size:1rem">Suppliers</h2>
@@ -252,7 +266,18 @@ function needs(run) {
 
 // ---------- Quote ----------
 // Starting prices for a new installer: lights + install + take-down, per foot (nets per sq ft).
-const DEFAULT_RATES = { c9: 9, c7: 8, mini: 6, net: 3, rope: 8, min: 500, steep: 25 };
+const DEFAULT_RATES = { c9: 9, c7: 8, mini: 6, net: 3, rope: 8, min: 500, steep: 25, workers: 2, wage: 34, payroll: 20, comp: 13, overhead: 75 };
+// Crew speed for the hour estimate: each worker hangs about 25 ft of line an hour; a net takes about 12 crew-minutes.
+function autoHours(j) {
+  const R = rates(), workers = Math.max(1, Number(R.workers) || 1);
+  let ft = 0, nets = 0;
+  for (const r of j.runs) { const n = parseLen(r.feet); if (unitOf(r) === "ft") ft += n; else nets += Math.ceil(n / 24); }
+  if (!ft && !nets) return { install: 0, takedown: 0 };
+  let install = ft / (25 * workers) + nets * 0.2;
+  if (j.steep) install *= 1.25;
+  install = Math.max(1, Math.ceil(install * 2) / 2);
+  return { install, takedown: Math.max(0.5, Math.ceil(install) / 2) };
+}
 const DEFAULT_INCLUDED = "Commercial-grade LED lights, professional installation, free repairs during the season, and take-down after the holidays.";
 const rates = () => ({ ...DEFAULT_RATES, ...(state.settings.rates || {}) });
 const money = n => "$" + Number(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -269,7 +294,16 @@ function quote(j) {
   const minApplied = total > 0 && total < (Number(R.min) || 0);
   if (minApplied) total = Number(R.min);
   const cost = j.runs.flatMap(needs).reduce((s, it) => s + it.qty / it.pack * it.cost, 0);
-  return { lines, sub, steep, total, minApplied, cost, profit: total - cost, steepPct: Number(R.steep) || 0 };
+  const auto = autoHours(j);
+  const installHrs = j.installHrs !== "" && j.installHrs != null ? parseLen(j.installHrs) : auto.install;
+  const takedownHrs = j.takedownHrs !== "" && j.takedownHrs != null ? parseLen(j.takedownHrs) : auto.takedown;
+  const hours = installHrs + takedownHrs, workers = Number(R.workers) || 0, wage = Number(R.wage) || 0;
+  const crewPay = workers * wage * hours;
+  const burdenPct = (Number(R.payroll) || 0) + (Number(R.comp) || 0);
+  const burden = crewPay * burdenPct / 100;
+  const overhead = lines.length ? Number(R.overhead) || 0 : 0;
+  const takeHome = total - cost - crewPay - burden - overhead;
+  return { lines, sub, steep, total, minApplied, cost, profit: total - cost, steepPct: Number(R.steep) || 0, auto, hours, workers, wage, crewPay, burdenPct, burden, overhead, takeHome };
 }
 function quoteText(j) {
   const q = quote(j), biz = state.settings.bizName;
@@ -291,9 +325,16 @@ function renderQuote() {
   if (q.steep) t.append(row(`Two-story / steep roof (+${q.steepPct}%)`, money(q.steep)));
   if (q.minApplied) t.append(row("Raised to your minimum job price", ""));
   t.append(row("Quote total", money(q.total), "grand"));
+  $("installHrs").placeholder = q.auto.install ? q.auto.install + " (estimate)" : "Estimate";
+  $("takedownHrs").placeholder = q.auto.takedown ? q.auto.takedown + " (estimate)" : "Estimate";
   $("mine").replaceChildren(el("span", { class: "k", text: "Only you see this" }),
-    row("Estimated cost of lights", money(q.cost)),
-    el("div", {}, el("span", { text: "Left over for labor + profit" }), el("span", { class: "amt profit", text: money(q.profit) })));
+    row("Customer pays", money(q.total)),
+    row("Lights", "−" + money(q.cost)),
+    row(`Crew pay (${q.workers} × ${q.hours} hrs × ${money(q.wage)})`, "−" + money(q.crewPay)),
+    row(`Payroll taxes + workers' comp (${q.burdenPct}%)`, "−" + money(q.burden)),
+    row("Gas, insurance & gear", "−" + money(q.overhead)),
+    el("div", { class: "grand" }, el("span", { text: "You take home" }), el("span", { class: "amt " + (q.takeHome >= 0 ? "profit" : "loss"), text: money(q.takeHome) })),
+    q.hours ? el("div", { class: "hint" }, el("span", { text: `That's ${money(q.takeHome / q.hours)} for every hour the crew is on site.` })) : null);
   $("quoteText").textContent = quoteText(j);
   $("emailQuote").href = `mailto:${encodeURIComponent(j.custEmail || "")}?subject=${encodeURIComponent("Your Christmas lighting quote")}&body=${encodeURIComponent(quoteText(j))}`;
 }
@@ -383,6 +424,8 @@ function openJob(id) {
   $("custName").value = j.customer || "";
   $("custEmail").value = j.custEmail || "";
   $("steep").checked = !!j.steep;
+  $("installHrs").value = j.installHrs || "";
+  $("takedownHrs").value = j.takedownHrs || "";
   $("delAsk").hidden = true;
   updateMap(); renderRuns(); renderSuppliers(); renderOrder(); renderJobPick();
 }
@@ -470,6 +513,7 @@ $("address").addEventListener("input", () => { const j = cur(); j.address = $("a
 $("custName").addEventListener("input", () => { const j = cur(); j.customer = $("custName").value; saveJob(j); renderQuote(); });
 $("custEmail").addEventListener("input", () => { const j = cur(); j.custEmail = $("custEmail").value; saveJob(j); renderQuote(); });
 $("steep").addEventListener("change", () => { const j = cur(); j.steep = $("steep").checked; saveJob(j); renderQuote(); });
+for (const k of ["installHrs", "takedownHrs"]) $(k).addEventListener("input", () => { const j = cur(); j[k] = $(k).value; saveJob(j); renderQuote(); });
 $("copyQuote").addEventListener("click", () => {
   const text = quoteText(cur());
   const fallback = () => { const p = $("quoteText"); p.classList.remove("sr"); const r = document.createRange(); r.selectNodeContents(p); const s = getSelection(); s.removeAllRanges(); s.addRange(r); toast("Selected – press copy on your device"); };

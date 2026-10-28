@@ -9,9 +9,15 @@ Open `index.html` in a browser, or turn on GitHub Pages (Settings → Pages → 
 1. **Address** – type it and tap *Look up on satellite map*. In Google Maps, switch to Satellite, right-click (or press and hold) the roof edge and choose *Measure distance*.
 2. **Measurements & lights** – one row per spot: where, length (feet, or square feet for net lights), and the light type + color.
 3. **Order** – the list is rounded up to full boxes, spools and bags. Choose a supplier, then *Email order* or *Copy order*.
-4. **Customer quote** – prices each spot from your rates, adds the two-story charge if checked, and applies your minimum job price. *Email quote to customer* or *Copy quote*. The "Only you see this" box shows the estimated cost of the lights and what's left for labor and profit.
+4. **Customer quote** – prices each spot from your rates, adds the two-story charge if checked, and applies your minimum job price. *Email quote to customer* or *Copy quote*. The "Only you see this" box shows what you take home after the lights, crew pay, payroll taxes, workers' comp, and gas/insurance/gear.
 
 Set your prices, business name and suppliers under **Prices & suppliers**.
+
+## Crew and take-home
+
+Set under **Prices & suppliers → My crew**: workers per job (default 2), pay per worker ($34/hr), payroll taxes (20%), workers' comp (13%), and gas/insurance/gear per job ($75).
+
+Each quote estimates install hours at about 25 ft per worker per hour (plus ~12 crew-minutes per net light, +25% for two-story), with take-down at about half the install time. Type your own hours on any job to override the estimate.
 
 ## Starting prices
 
