@@ -3,6 +3,6 @@
 // the database rules in supabase/schema.sql are what keep each company's data private.
 // Leave them empty to run in demo mode, where everything is saved only in this browser.
 window.LJE_CONFIG = {
-  supabaseUrl: "",
+  supabaseUrl: "https://migukcorgbbjrzqbaedf.supabase.co",
   supabaseAnonKey: "sb_publishable_IxVUbvnTpzlzdI2--jBgrg_LRafC9rR",
 };
