@@ -101,6 +101,8 @@ function renderQuote() {
   if (q.steep) t.append(row(`Two-story / steep roof (+${q.steepPct}%)`, money(q.steep)));
   if (q.minApplied) t.append(row("Raised to your minimum job price", ""));
   t.append(row("Quote total", money(q.total), "grand"));
+  const owner = isOwner();
+  $("mine").hidden = !owner; $("hoursRow").hidden = !owner;
   $("installHrs").placeholder = q.auto.install ? q.auto.install + " (estimate)" : "Estimate";
   $("takedownHrs").placeholder = q.auto.takedown ? q.auto.takedown + " (estimate)" : "Estimate";
   $("mine").replaceChildren(el("span", { class: "k", text: "Only you see this" }),
@@ -273,12 +275,84 @@ function renderSettings() {
   for (const k of Object.keys(DEFAULT_RATES)) $("r-" + k).value = R[k];
   $("included").value = state.settings.included || DEFAULT_INCLUDED;
   const box = $("supList"); box.replaceChildren();
+  if (!(state.settings.suppliers || []).length) box.append(el("div", { class: "hint", text: "No suppliers yet." }));
   (state.settings.suppliers || []).forEach((sp, i) => {
     const f = (k, ph, cls) => { const inp = el("input", { value: sp[k] || "", placeholder: ph, "aria-label": ph, id: `s-${sp.id}-${k}`, class: cls }); inp.addEventListener("input", () => { sp[k] = inp.value; saveSettings(); renderSuppliers(); renderOrder(); }); return inp; };
     box.append(el("div", { class: "sup" }, f("name", "Supplier name"), f("email", "Order email", "em"),
       el("button", { type: "button", class: "btn x", "aria-label": "Remove supplier", text: "×", onclick: () => { state.settings.suppliers.splice(i, 1); saveSettings(); renderSettings(); renderSuppliers(); renderOrder(); } })));
   });
+  const owner = isOwner();
+  $("readOnlyNote").hidden = owner;
+  $("crewSettings").hidden = !owner;
+  for (const c of $("settings").querySelectorAll("input, textarea, button")) if (c.id !== "closeSettings") c.disabled = !owner;
 }
+
+// ---------- Team (owner only) ----------
+const isOwner = () => !company || company.role === "owner";
+const inviteUrl = token => location.origin + location.pathname + "?invite=" + encodeURIComponent(token);
+const shortDate = d => new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+function showInviteLink(token, label) {
+  const url = inviteUrl(token), msg = `You're invited to join ${company.name} on Lights Job Estimator. Open this link to sign up: ${url}`;
+  $("inviteLink").value = url;
+  $("smsInvite").href = "sms:?&body=" + encodeURIComponent(msg);
+  $("mailInvite").href = "mailto:?subject=" + encodeURIComponent("Join " + company.name) + "&body=" + encodeURIComponent(msg);
+  $("inviteOut").hidden = false;
+  $("inviteOut").dataset.label = label || "";
+}
+function copyText(text, input, done) {
+  const fallback = () => { input.focus(); input.select(); toast("Selected – press copy on your device"); };
+  try { navigator.clipboard.writeText(text).then(() => toast(done), fallback); } catch (e) { fallback(); }
+}
+async function renderTeam() {
+  const ml = $("memberList"), il = $("inviteList");
+  try {
+    const [members, invites] = await Promise.all([Store.listMembers(company.id), Store.listInvites(company.id)]);
+    ml.replaceChildren(...members.map(m => {
+      const me = m.role === "owner";
+      const acts = el("div", { class: "acts" });
+      if (!me) {
+        const rm = el("button", { type: "button", class: "btn link", text: "Remove" });
+        rm.addEventListener("click", async () => {
+          if (rm.dataset.armed !== "1") { rm.dataset.armed = "1"; rm.textContent = "Tap again to remove"; rm.style.color = "var(--berry)"; return; }
+          try { await Store.removeMember(company.id, m.user_id); toast("Removed from your team"); } catch (e) { toast(friendly(e)); }
+          renderTeam();
+        });
+        acts.append(rm);
+      }
+      return el("div", { class: "person" }, el("div", { class: "who" }, m.email || "Team member", el("small", { text: me ? "Owner" : "Crew · joined " + shortDate(m.created_at) })), acts);
+    }));
+    il.replaceChildren(...(invites.length ? invites.map(inv => el("div", { class: "person" },
+      el("div", { class: "who" }, inv.label || "Unnamed invite", el("small", { text: "Link expires " + shortDate(inv.expires_at) })),
+      el("div", { class: "acts" },
+        el("button", { type: "button", class: "btn link", text: "Show link", onclick: () => showInviteLink(inv.token, inv.label) }),
+        el("button", { type: "button", class: "btn link", text: "Cancel", onclick: async () => {
+          try { await Store.cancelInvite(inv.token); toast("Invite cancelled"); } catch (e) { toast(friendly(e)); }
+          $("inviteOut").hidden = true; renderTeam();
+        } })))) : [el("div", { class: "hint", text: "No open invites." })]));
+  } catch (e) { ml.replaceChildren(el("div", { class: "msg err", text: friendly(e) })); }
+}
+$("openTeam").addEventListener("click", () => { $("inviteOut").hidden = true; renderTeam(); $("team").showModal(); });
+$("closeTeam").addEventListener("click", () => $("team").close());
+$("makeInvite").addEventListener("click", async () => {
+  const btn = $("makeInvite"); btn.disabled = true;
+  try {
+    const label = $("inviteLabel").value.trim();
+    showInviteLink(await Store.createInvite(company.id, label), label);
+    $("inviteLabel").value = ""; renderTeam();
+  } catch (e) { toast(friendly(e)); }
+  btn.disabled = false;
+});
+$("copyInvite").addEventListener("click", () => copyText($("inviteLink").value, $("inviteLink"), "Invite link copied"));
+
+// An invite link (?invite=…) is remembered until the person signs in, even through email confirmation.
+const INVITE_KEY = "lje-invite";
+const pendingInvite = () => { try { return localStorage.getItem(INVITE_KEY) || ""; } catch (e) { return ""; } };
+const setPendingInvite = t => { try { t ? localStorage.setItem(INVITE_KEY, t) : localStorage.removeItem(INVITE_KEY); } catch (e) {} };
+const tokenFrom = text => { const m = String(text).match(/invite=([A-Za-z0-9]+)/); return m ? m[1] : String(text).trim().replace(/[^A-Za-z0-9]/g, ""); };
+(() => {
+  const t = new URLSearchParams(location.search).get("invite");
+  if (t) { setPendingInvite(tokenFrom(t)); history.replaceState(null, "", location.pathname + location.hash); }
+})();
 
 // ---------- Events ----------
 $("address").addEventListener("input", () => { const j = cur(); j.address = $("address").value; updateMap(); saveJob(j); renderOrder(); });
@@ -336,12 +410,21 @@ async function startApp(co) {
   state.settings = { bizName: co.name, suppliers: [], ...JSON.parse(JSON.stringify(co.settings || {})) };
   state.jobs = {};
   for (const j of await Store.loadJobs(co.id)) state.jobs[j.id] = normalize(j);
-  $("companyName").textContent = co.name;
+  $("companyName").textContent = co.name + (co.role === "owner" ? "" : " · crew");
+  $("openTeam").hidden = !(Store.hasTeams && co.role === "owner");
   show("appView");
   bootWith();
 }
 async function enterCompany() {
-  const co = await Store.myCompany();
+  const co = await Store.myCompany(), invite = pendingInvite();
+  if (invite && Store.hasTeams) {
+    setPendingInvite("");
+    if (co) toast("This account already belongs to a company, so the invite wasn't used.");
+    else {
+      try { const joined = await Store.acceptInvite(invite); toast("You joined " + joined.name); return startApp(joined); }
+      catch (e) { show("companyView"); $("inviteCode").value = invite; setMsg("joinMsg", friendly(e), "err"); return; }
+    }
+  }
   if (!co) { show("companyView"); $("newCompany").focus(); return; }
   await startApp(co);
 }
@@ -363,6 +446,7 @@ function showAuth(mode, msg, kind) {
   $("toForgot").hidden = mode !== "signin";
   $("toSignIn").hidden = mode === "signin";
   setMsg("authMsg", msg, kind);
+  $("inviteNote").hidden = !pendingInvite() || mode === "forgot";
   show("authView");
 }
 function friendly(e) {
@@ -397,9 +481,18 @@ $("authView").addEventListener("submit", async e => {
   } catch (err) { setMsg("authMsg", friendly(err), "err"); }
   btn.disabled = false;
 });
+async function joinWithCode() {
+  const token = tokenFrom($("inviteCode").value);
+  if (!token) return setMsg("joinMsg", "Paste the invite link you were sent.", "err");
+  setMsg("joinMsg", "Joining…");
+  try { const joined = await Store.acceptInvite(token); toast("You joined " + joined.name); await startApp(joined); }
+  catch (err) { setMsg("joinMsg", friendly(err), "err"); }
+}
+$("joinCompany").addEventListener("click", joinWithCode);
 $("companyView").addEventListener("submit", async e => {
   e.preventDefault();
   const name = $("newCompany").value.trim();
+  if (!name && $("inviteCode").value.trim()) return joinWithCode();
   if (!name) return setMsg("companyMsg", "Enter your company name.", "err");
   setMsg("companyMsg", "Creating…");
   try { await startApp(await Store.createCompany(name)); }

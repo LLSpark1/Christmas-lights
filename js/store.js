@@ -71,6 +71,39 @@ function cloudStore(url, key) {
       const { error } = await sb.from("companies").update({ settings }).eq("id", companyId);
       fail(error, "Couldn't save your prices and suppliers.");
     },
+    // ---- Team ----
+    hasTeams: true,
+    async listMembers(companyId) {
+      const { data, error } = await sb.from("memberships").select("user_id, role, email, created_at")
+        .eq("company_id", companyId).order("created_at");
+      fail(error, "Couldn't load your team.");
+      return data;
+    },
+    async listInvites(companyId) {
+      const { data, error } = await sb.from("invites").select("token, label, created_at, expires_at")
+        .eq("company_id", companyId).is("used_at", null).gt("expires_at", new Date().toISOString())
+        .order("created_at", { ascending: false });
+      fail(error, "Couldn't load invites.");
+      return data;
+    },
+    async createInvite(companyId, label) {
+      const { data, error } = await sb.rpc("create_invite", { c: companyId, invite_label: label });
+      fail(error, "Couldn't create the invite.");
+      return data;
+    },
+    async cancelInvite(token) {
+      const { error } = await sb.rpc("cancel_invite", { invite_token: token });
+      fail(error, "Couldn't cancel the invite.");
+    },
+    async removeMember(companyId, userId) {
+      const { error } = await sb.rpc("remove_member", { c: companyId, member: userId });
+      fail(error, "Couldn't remove that person.");
+    },
+    async acceptInvite(token) {
+      const { error } = await sb.rpc("accept_invite", { invite_token: token });
+      fail(error, "Couldn't join the company.");
+      return this.myCompany();
+    },
   };
 }
 
@@ -80,6 +113,7 @@ function demoStore() {
   const write = s => { try { localStorage.setItem(KEY, JSON.stringify(s)); } catch (e) {} };
   return {
     mode: "demo",
+    hasTeams: false,
     async getUser() { return { id: "demo", email: "" }; },
     onAuth() {},
     async myCompany() {

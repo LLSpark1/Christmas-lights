@@ -123,6 +123,17 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
 .msg { font-size: .9rem; min-height: 1.2em; }
 .msg.err { color: var(--berry); }
 .msg.ok { color: var(--ok); }
+.people { display: grid; }
+.person { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.person:last-child { border-bottom: 0; }
+.person .who { overflow-wrap: anywhere; }
+.person .who small { display: block; color: var(--muted); font-size: .8rem; }
+.person .acts { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+.invite-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+@media (max-width: 480px) { .invite-row { grid-template-columns: minmax(0, 1fr); } }
+.invite-out { display: grid; gap: 8px; background: var(--sunk); border-radius: 8px; padding: 12px; }
+.invite-out input { font-family: var(--mono); font-size: .8rem; }
+.or { text-align: center; color: var(--muted); font-size: .9rem; border-top: 1px solid var(--line); padding-top: 12px; margin-top: 4px; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 </style>
 </head>
@@ -133,6 +144,7 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
     <div class="brand"><div class="bulbs" aria-hidden="true"><i></i><i></i><i></i></div><h1>Lights Job Estimator</h1></div>
     <div class="account" id="account" hidden>
       <span id="companyName"></span>
+      <button class="btn link" id="openTeam" type="button" hidden>Team</button>
       <button class="btn link" id="openSettings" type="button">Prices &amp; suppliers</button>
       <button class="btn link" id="signOut" type="button" hidden>Sign out</button>
     </div>
@@ -152,6 +164,7 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
     <h2 id="authTitle">Sign in</h2>
     <label class="f">Email<input id="authEmail" type="email" autocomplete="email" required></label>
     <label class="f" id="authPassWrap">Password<input id="authPass" type="password" autocomplete="current-password" minlength="8" required></label>
+    <div class="banner" id="inviteNote" hidden>You've been invited to join a company. Create an account or sign in to join.</div>
     <div class="msg" id="authMsg" role="status"></div>
     <button class="btn primary" id="authSubmit" type="submit">Sign in</button>
     <div class="authlinks">
@@ -167,6 +180,10 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
     <label class="f">Company name<input id="newCompany" autocomplete="organization" required maxlength="120"></label>
     <div class="msg" id="companyMsg" role="status"></div>
     <button class="btn primary" type="submit">Create company</button>
+    <div class="or">Joining your boss's company instead?</div>
+    <label class="f">Invite link or code<input id="inviteCode" autocomplete="off" placeholder="Paste the invite link you were sent"></label>
+    <div class="msg" id="joinMsg" role="status"></div>
+    <button class="btn" id="joinCompany" type="button">Join company</button>
   </form>
 
   <form class="card authcard" id="resetView" hidden novalidate>
@@ -227,7 +244,7 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
       <a class="btn primary" id="emailQuote" href="#">Email quote to customer</a>
       <button class="btn" id="copyQuote" type="button">Copy quote</button>
     </div>
-    <div class="two">
+    <div class="two" id="hoursRow">
       <label class="f">Install hours<input id="installHrs" inputmode="decimal" autocomplete="off"></label>
       <label class="f">Take-down hours<input id="takedownHrs" inputmode="decimal" autocomplete="off"></label>
     </div>
@@ -246,6 +263,7 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
 <dialog id="settings">
   <div style="display:grid;gap:12px">
     <div style="display:flex;justify-content:space-between;align-items:center"><h2>Prices &amp; suppliers</h2><button class="btn" id="closeSettings" type="button">Done</button></div>
+    <div class="banner" id="readOnlyNote" hidden>Only the company owner can change prices and suppliers.</div>
     <input id="bizName" placeholder="Your business name (goes on orders and quotes)" aria-label="Business name">
     <h2 style="font-size:1rem">My prices</h2>
     <div class="rates">
@@ -257,6 +275,7 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
       <label>Minimum job ($)<input id="r-min" type="number" min="0" step="25"></label>
       <label>Two-story / steep (+%)<input id="r-steep" type="number" min="0" step="5"></label>
     </div>
+    <div id="crewSettings" style="display:grid;gap:12px">
     <h2 style="font-size:1rem">My crew</h2>
     <div class="rates">
       <label>Workers per job<input id="r-workers" type="number" min="1" step="1"></label>
@@ -265,11 +284,36 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
       <label>Workers' comp (%)<input id="r-comp" type="number" min="0" step="0.5"></label>
       <label>Gas, insurance &amp; gear ($/job)<input id="r-overhead" type="number" min="0" step="5"></label>
     </div>
+    </div>
     <label class="f">What the price includes (printed on quotes)<textarea id="included" rows="2"></textarea></label>
     <h2 style="font-size:1rem">Suppliers</h2>
     <div id="supList" style="display:grid;gap:8px"></div>
     <button class="btn" id="addSup" type="button">+ Add supplier</button>
     <div class="hint">Put in each supplier's order email so “Email order” goes straight to them.</div>
+  </div>
+</dialog>
+
+<dialog id="team">
+  <div style="display:grid;gap:12px">
+    <div style="display:flex;justify-content:space-between;align-items:center"><h2>Team</h2><button class="btn" id="closeTeam" type="button">Done</button></div>
+    <div class="hint">Workers you invite can see and edit your company's jobs and send orders. They can't change your prices or suppliers, and they don't see your take-home numbers.</div>
+    <div id="memberList" class="people"></div>
+    <h2 style="font-size:1rem">Invite a worker</h2>
+    <div class="invite-row">
+      <input id="inviteLabel" placeholder="Worker's name (optional)" aria-label="Worker's name" maxlength="200">
+      <button class="btn primary" id="makeInvite" type="button">Create invite link</button>
+    </div>
+    <div class="invite-out" id="inviteOut" hidden>
+      <div class="hint">Send this link to your worker. It works once and expires in 14 days.</div>
+      <input id="inviteLink" readonly aria-label="Invite link">
+      <div class="row">
+        <button class="btn" id="copyInvite" type="button">Copy link</button>
+        <a class="btn" id="smsInvite" href="#">Text it</a>
+        <a class="btn" id="mailInvite" href="#">Email it</a>
+      </div>
+    </div>
+    <h2 style="font-size:1rem">Waiting to join</h2>
+    <div id="inviteList" class="people"></div>
   </div>
 </dialog>
 

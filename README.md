@@ -12,6 +12,7 @@ Each company signs up with its own login and sees only its own jobs, prices and 
 | `js/store.js` | Saves and loads data: Supabase when connected, otherwise this browser (demo mode). |
 | `config.js` | Your Supabase project address and public key. Empty = demo mode. |
 | `supabase/schema.sql` | Database tables plus the rules that keep each company's data private. |
+| `supabase/02-crew-invites.sql` | Invite links, team list and removing members. Run after `schema.sql`. |
 
 Hosting is free on GitHub Pages; logins and data are free on Supabase's starter plan.
 
@@ -22,7 +23,7 @@ Open `index.html` in a browser. With `config.js` empty there's no login, and job
 ## Turn on logins (one-time setup, about 15 minutes)
 
 1. **Create the database.** Sign up at [supabase.com](https://supabase.com) and create a new project. Save the database password it shows you.
-2. **Load the tables and privacy rules.** In the project, open **SQL Editor → New query**, paste everything from `supabase/schema.sql`, and press **Run**. It should finish with "Success. No rows returned".
+2. **Load the tables and privacy rules.** In the project, open **SQL Editor → New query**, paste everything from `supabase/schema.sql`, and press **Run**. It should finish with "Success. No rows returned". Then do the same with `supabase/02-crew-invites.sql`.
 3. **Tell Supabase where the app lives.** Go to **Authentication → URL Configuration**. Set **Site URL** to your app's address (for GitHub Pages: `https://llspark1.github.io/Christmas-lights/`) and add the same address under **Redirect URLs**. Confirmation and password-reset emails link back here.
 4. **Connect the app.** Copy your **Project URL** (`https://<project-id>.supabase.co`; the project ID is in the dashboard's address bar) and your **publishable key** (`sb_publishable_…`, under **Project Settings → API Keys**) into `config.js`, then commit and push. The publishable key is meant to be public; the rules from step 2 are what protect each company's data. Never put a secret key (`sb_secret_…` or `service_role`) in this repo.
 5. **Publish the app.** In this GitHub repo, go to **Settings → Pages**, choose **Deploy from a branch**, then `main` and `/ (root)`. A minute later the app is live at the address from step 3.
@@ -38,7 +39,16 @@ Open `index.html` in a browser. With `config.js` empty there's no login, and job
 2. They confirm their email, sign in, and name their company. That account becomes the company **owner**.
 3. The owner's jobs, prices, crew pay and suppliers are private to that company.
 
-Not built yet: inviting crew members to an existing company, company logos on quotes, and taking payment (Stripe).
+## Crew
+
+The owner taps **Team → Create invite link** and sends the link by text or email. The worker opens it, creates an account (or signs in), and joins the company. A worker who opens the link on another device can paste it into **Joining your boss's company instead?** after signing in.
+
+- Links work once and expire after 14 days. The owner can cancel open invites and remove workers at any time; removed workers lose access immediately.
+- Crew members can see and edit all of the company's jobs and send supplier orders.
+- Crew members can't change prices, suppliers or crew pay, and the app hides the owner's take-home numbers and hours from them. These are hidden in the app, not encrypted: someone technical on the crew could still read the company's saved prices and pay rates.
+- Each account belongs to one company.
+
+Not built yet: company logos on quotes, and taking payment (Stripe).
 
 ## Using the app
 
