@@ -24,7 +24,7 @@ Open `index.html` in a browser. With `config.js` empty there's no login, and job
 1. **Create the database.** Sign up at [supabase.com](https://supabase.com) and create a new project. Save the database password it shows you.
 2. **Load the tables and privacy rules.** In the project, open **SQL Editor → New query**, paste everything from `supabase/schema.sql`, and press **Run**. It should finish with "Success. No rows returned".
 3. **Tell Supabase where the app lives.** Go to **Authentication → URL Configuration**. Set **Site URL** to your app's address (for GitHub Pages: `https://llspark1.github.io/christmas-lights/`) and add the same address under **Redirect URLs**. Confirmation and password-reset emails link back here.
-4. **Connect the app.** Go to **Project Settings → API**. Copy the **Project URL** and the **anon public** key into `config.js`, then commit and push. The anon key is meant to be public; the rules from step 2 are what protect each company's data. Never put the `service_role` key in this repo.
+4. **Connect the app.** Copy your **Project URL** (`https://<project-id>.supabase.co`; the project ID is in the dashboard's address bar) and your **publishable key** (`sb_publishable_…`, under **Project Settings → API Keys**) into `config.js`, then commit and push. The publishable key is meant to be public; the rules from step 2 are what protect each company's data. Never put a secret key (`sb_secret_…` or `service_role`) in this repo.
 5. **Publish the app.** In this GitHub repo, go to **Settings → Pages**, choose **Deploy from a branch**, then `main` and `/ (root)`. A minute later the app is live at the address from step 3.
 
 ### Before real customers sign up
